@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional, List, Union
 import os
@@ -26,6 +27,11 @@ app.add_middleware(
 
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 app.mount("/dashboard", StaticFiles(directory=static_dir, html=True), name="dashboard")
+
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/dashboard")
 
 # Feedback loop is currently manual: overrides are logged but nothing retrains
 # automatically yet. This just reports progress toward a stated batch size so the
