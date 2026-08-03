@@ -213,7 +213,7 @@
       <h3>New Diagnosis</h3>
       <div class="row2">
         <div class="field"><label>Vehicle type</label>
-          <select id="vehicle_type"><option>ICE</option><option>Scooter</option><option>EV</option></select>
+          <select id="vehicle_type" onchange="updateModelPlaceholder()"><option>ICE</option><option>Scooter</option><option>EV</option></select>
         </div>
         <div class="field"><label>Fault code(s)</label>
           <input id="fault_code" value="P0301" placeholder="P0301, P0171">
@@ -250,6 +250,20 @@ const API = window.location.origin;
 let lastPredictionId = null;
 let lastTopCause = null;
 let donutChart;
+
+const modelPlaceholders = {
+  ICE: "Xtreme 160R",
+  Scooter: "Pleasure Plus",
+  EV: "Vida V1"
+};
+
+function updateModelPlaceholder() {
+  const type = document.getElementById('vehicle_type').value;
+  const modelInput = document.getElementById('model');
+  if (modelInput) {
+    modelInput.placeholder = modelPlaceholders[type] || "Xtreme 160R";
+  }
+}
 
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
@@ -427,6 +441,7 @@ async function loadAnalytics() {
 }
 
 loadAnalytics();
+updateModelPlaceholder();
 </script>
 </body>
 </html>
