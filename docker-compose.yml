@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: repair_ai_pg
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: repair
+      POSTGRES_PASSWORD: repair
+      POSTGRES_DB: repair_ai
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repair -d repair_ai"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: repair_ai_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+volumes:
+  pgdata:

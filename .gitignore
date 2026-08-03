@@ -1,0 +1,28 @@
+# Environment variables (SECRETS - DO NOT COMMIT)
+.env
+.env.local
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database / Local storage
+*.sqlite3
+*.db

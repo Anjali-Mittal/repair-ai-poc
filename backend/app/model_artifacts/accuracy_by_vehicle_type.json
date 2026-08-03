@@ -1,0 +1,17 @@
+[
+  {
+    "vehicle_type": "EV",
+    "n_rows": 3963,
+    "accuracy": 0.696
+  },
+  {
+    "vehicle_type": "ICE",
+    "n_rows": 7216,
+    "accuracy": 0.525
+  },
+  {
+    "vehicle_type": "Scooter",
+    "n_rows": 8821,
+    "accuracy": 0.543
+  }
+]

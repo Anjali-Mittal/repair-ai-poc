@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Repair Intelligence — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5fa;
+    --card: #ffffff;
+    --line: #edeef5;
+    --ink: #23273a;
+    --dim: #9297ab;
+    --blue: #4c5fd6;
+    --blue-soft: #eceefb;
+    --orange: #f0854a;
+    --orange-soft: #fdece1;
+    --navy: #262c5c;
+    --green: #2fae8b;
+    --rose: #e2607a;
+    --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 26px 32px 60px;
+  }
+  .shell { max-width: 1180px; margin: 0 auto; }
+
+  /* --- top bar (no sidebar) --- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 26px;
+  }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; }
+  .topbar h1 { font-size: 15.5px; font-weight: 700; margin: 0; }
+  .topbar .sub { font-size: 12px; color: var(--dim); margin-top: 1px; }
+  .live-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 0 0 rgba(47,174,139,.5); animation: pulse 2s infinite;
+  }
+  .live-dot.offline { background: var(--rose); animation: none; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(47,174,139,.45); }
+    70%  { box-shadow: 0 0 0 7px rgba(47,174,139,0); }
+    100% { box-shadow: 0 0 0 0 rgba(47,174,139,0); }
+  }
+
+  h2.pagetitle { font-size: 21px; font-weight: 800; margin: 0 0 18px; }
+
+  /* --- KPI row --- */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
+  @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  .kpi {
+    background: var(--card); border-radius: 16px; padding: 20px 18px;
+    box-shadow: 0 1px 2px rgba(35,39,66,.03), 0 8px 20px -14px rgba(35,39,66,.12);
+  }
+  .kpi .num { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+  .kpi .lbl { font-size: 11.5px; color: var(--dim); margin-top: 4px; }
+  .kpi .num.warn { color: var(--orange); }
+  .kpi .num.low { color: var(--rose); }
+
+  .card {
+    background: var(--card); border-radius: 18px; padding: 20px;
+    box-shadow: 0 1px 2px rgba(35,39,66,.03), 0 8px 20px -14px rgba(35,39,66,.12);
+  }
+  .card h3 {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--dim); margin: 0 0 16px;
+  }
+
+  /* --- row: form | ranked causes --- */
+  .row-main { display: grid; grid-template-columns: 1fr 1.25fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 980px) { .row-main { grid-template-columns: 1fr; } }
+
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 5px; font-weight: 500; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  input, select {
+    width: 100%; background: #f6f7fb; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font-family: var(--sans); font-size: 13.5px;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--blue); background: #fff; }
+  #fault_code { font-family: var(--mono); font-weight: 600; letter-spacing: 1px; color: var(--blue); }
+
+  button.run {
+    width: 100%; margin-top: 6px;
+    background: var(--blue); color: #fff; border: none;
+    font-family: var(--sans); font-weight: 700; font-size: 13.5px;
+    padding: 12px; border-radius: 10px; cursor: pointer;
+  }
+  button.run:hover { background: #3d4bc4; }
+  button.run:disabled { opacity: .55; cursor: default; }
+
+  /* --- ranked causes: donut center + progress-bar list --- */
+  .empty { color: var(--dim); font-size: 13px; padding: 40px 0; text-align: center; }
+
+  .donut-row { display: flex; align-items: center; gap: 22px; margin-bottom: 18px; }
+  .donut-wrap { position: relative; width: 118px; height: 118px; flex-shrink: 0; }
+  .donut-wrap .center-num {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .donut-wrap .center-num .n { font-family: var(--mono); font-weight: 700; font-size: 24px; }
+  .donut-wrap .center-num .t { font-size: 9.5px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+  .donut-row .name { font-size: 16px; font-weight: 700; }
+  .donut-row .caption { font-size: 12px; color: var(--dim); margin-top: 3px; }
+
+  .bar-item { margin-bottom: 12px; }
+  .bar-item .top-line { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 5px; }
+  .bar-item .top-line .pct { font-family: var(--mono); color: var(--dim); }
+  .bar-item .track { height: 7px; background: var(--line); border-radius: 5px; overflow: hidden; }
+  .bar-item .fill { display: block; height: 100%; border-radius: 5px; background: var(--bar, var(--blue)); }
+
+  .explanation {
+    margin-top: 14px; padding: 12px 14px; background: var(--blue-soft);
+    border-radius: 10px; font-size: 12.5px; line-height: 1.55; color: var(--ink);
+  }
+  .explanation.wear { background: var(--orange-soft); }
+  .explanation.low-conf { background: #fbeaea; color: #9c3b45; font-weight: 500; }
+
+  .override-row { margin-top: 14px; display: flex; gap: 8px; }
+  .override-row input { flex: 1; }
+  .override-row button {
+    font-size: 12.5px; font-weight: 600; background: var(--blue-soft); color: var(--blue);
+    border: none; border-radius: 10px; padding: 0 16px; cursor: pointer;
+  }
+  .override-row button:hover { background: #dfe2f8; }
+  .override-ok { font-size: 11.5px; color: var(--green); margin-top: 8px; font-weight: 600; }
+  .override-ok.err { color: var(--rose); }
+
+  .risk-badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: .03em;
+    margin-left: 8px; vertical-align: middle;
+  }
+  .risk-badge.high { background: #fbeaea; color: #9c3b45; }
+  .risk-badge.medium { background: var(--orange-soft); color: #8a4d1f; }
+  .risk-badge.low { background: #e7f5ef; color: #1f6b52; }
+
+  .kb-block { margin-top: 12px; }
+  .kb-block .kb-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); margin-bottom: 6px; }
+  .kb-block .recommendation { font-size: 12.5px; line-height: 1.5; margin-bottom: 10px; }
+  .checklist { list-style: none; padding: 0; margin: 0; }
+  .checklist li { font-size: 12.5px; padding: 5px 0 5px 22px; position: relative; }
+  .checklist li::before {
+    content: ""; position: absolute; left: 0; top: 8px; width: 12px; height: 12px;
+    border: 1.5px solid var(--dim); border-radius: 3px;
+  }
+  .confirm-row { margin-top: 12px; display: flex; gap: 8px; }
+  .confirm-btn {
+    font-size: 12.5px; font-weight: 700; background: var(--green); color: #fff;
+    border: none; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+  }
+  .confirm-btn:hover { filter: brightness(1.05); }
+
+  .similar-cases { margin-top: 16px; }
+  .similar-cases .case-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; padding: 7px 0; border-top: 1px solid var(--line);
+  }
+  .similar-cases .case-row .cause { color: var(--ink); }
+  .similar-cases .case-row .override { color: var(--dim); font-size: 11px; }
+
+  /* --- full width chart card --- */
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div>
+        <h1>Repair Intelligence</h1>
+        <div class="sub">Technician diagnostic console</div>
+      </div>
+    </div>
+    <span class="live-dot" id="liveDot" title="Live"></span>
+  </div>
+
+  <h2 class="pagetitle">Dashboard</h2>
+
+  <div class="kpi-row">
+    <div class="kpi c1">
+      <div class="num" id="totalNum">—</div>
+      <div class="lbl">Predictions logged</div>
+    </div>
+    <div class="kpi c2">
+      <div class="num" id="agreementNum">—</div>
+      <div class="lbl">Technician agreement</div>
+    </div>
+    <div class="kpi c3">
+      <div class="num" id="avgConfNum">—</div>
+      <div class="lbl">Avg. top confidence</div>
+    </div>
+    <div class="kpi c4">
+      <div class="num" id="overrideNum">—</div>
+      <div class="lbl">Overrides logged</div>
+    </div>
+  </div>
+
+  <div class="row-main">
+
+    <div class="card">
+      <h3>New Diagnosis</h3>
+      <div class="row2">
+        <div class="field"><label>Vehicle type</label>
+          <select id="vehicle_type"><option>ICE</option><option>Scooter</option><option>EV</option></select>
+        </div>
+        <div class="field"><label>Fault code(s)</label>
+          <input id="fault_code" value="P0301" placeholder="P0301, P0171">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Make (optional)</label><input id="make" placeholder="Hero"></div>
+        <div class="field"><label>Model (optional)</label><input id="model" placeholder="Xtreme 160R"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Year (optional)</label><input id="year" type="number" placeholder="2022"></div>
+        <div class="field"><label>VIN (optional)</label><input id="vin" placeholder="for record-keeping only"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Age (months)</label><input id="age" type="number" value="24"></div>
+        <div class="field"><label>Mileage (km)</label><input id="mileage" type="number" value="15000"></div>
+      </div>
+      <div class="field"><label>Prior services</label><input id="prior_services" type="number" value="2"></div>
+      <div class="field"><label>Technician notes (optional)</label><input id="notes" placeholder="symptom, sound, when it happens..."></div>
+      <button class="run" id="runBtn" onclick="diagnose()">Run Diagnosis</button>
+    </div>
+
+    <div class="card">
+      <h3>Ranked Causes</h3>
+      <div id="result"><div class="empty">Run a diagnosis to see ranked causes</div></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const API = "http://localhost:8000";
+let lastPredictionId = null;
+let lastTopCause = null;
+let donutChart;
+
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function tierColor(conf) {
+  if (conf >= 0.6) return cssVar('--blue');
+  if (conf >= 0.3) return cssVar('--orange');
+  return cssVar('--rose');
+}
+
+async function diagnose() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = 'Running…';
+
+  const payload = {
+    vehicle_type: document.getElementById('vehicle_type').value,
+    fault_code: document.getElementById('fault_code').value.trim().toUpperCase(),
+    vehicle_age_months: parseInt(document.getElementById('age').value) || 0,
+    mileage_km: parseInt(document.getElementById('mileage').value) || 0,
+    prior_services: parseInt(document.getElementById('prior_services').value) || 0,
+    technician_notes: document.getElementById('notes').value,
+    make: document.getElementById('make').value.trim() || null,
+    model: document.getElementById('model').value.trim() || null,
+    year: document.getElementById('year').value ? parseInt(document.getElementById('year').value) : null,
+    vin: document.getElementById('vin').value.trim() || null,
+  };
+
+  try {
+    const res = await fetch(`${API}/diagnose`, {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    const data = await res.json();
+    lastPredictionId = data.prediction_id;
+    renderResult(data);
+    loadAnalytics();
+  } catch (err) {
+    document.getElementById('result').innerHTML =
+      `<div class="empty" style="color:var(--rose)">Diagnosis failed — ${err.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run Diagnosis';
+  }
+}
+
+function riskLabel(risk) {
+  return { high: "High risk", medium: "Medium risk", low: "Low risk" }[risk] || "";
+}
+
+function renderResult(data) {
+  const top = data.ranked_causes[0];
+  const rest = data.ranked_causes.slice(1);
+  const color = tierColor(top.confidence);
+  lastTopCause = top.cause;
+
+  let restRows = "";
+  rest.forEach(c => {
+    const rc = tierColor(c.confidence);
+    restRows += `
+      <div class="bar-item">
+        <div class="top-line"><span>${c.cause}</span><span class="pct">${(c.confidence*100).toFixed(0)}%</span></div>
+        <div class="track"><span class="fill" style="width:${(c.confidence*100).toFixed(0)}%; --bar:${rc}"></span></div>
+      </div>`;
+  });
+
+  const wearFlag = /higher mileage\/age/i.test(data.explanation);
+
+  const checklistHtml = (data.top_cause_checklist || []).map(item => `<li>${item}</li>`).join("");
+
+  let similarHtml = "";
+  if (data.similar_cases && data.similar_cases.length) {
+    similarHtml = `
+      <div class="similar-cases">
+        <div class="kb-label">Similar past cases (same fault code)</div>
+        ${data.similar_cases.map(sc => `
+          <div class="case-row">
+            <span class="cause">${sc.predicted_cause} (${Math.round(sc.confidence*100)}%)${sc.make ? ' — ' + [sc.year, sc.make, sc.model].filter(Boolean).join(' ') : ''}</span>
+            <span class="override">${sc.technician_override ? '→ confirmed: ' + sc.technician_override : 'no override logged'}</span>
+          </div>`).join("")}
+      </div>`;
+  }
+
+  document.getElementById('result').innerHTML = `
+    <div class="donut-row">
+      <div class="donut-wrap">
+        <canvas id="donutChart" width="118" height="118"></canvas>
+        <div class="center-num">
+          <span class="n" style="color:${color}">${(top.confidence*100).toFixed(0)}%</span>
+          <span class="t">confidence</span>
+        </div>
+      </div>
+      <div>
+        <div class="name">${top.cause}<span class="risk-badge ${data.top_cause_risk}">${riskLabel(data.top_cause_risk)}</span></div>
+        <div class="caption">${(data.unknown_codes && data.unknown_codes.length) ? 'Code not in reference set — not a code-specific finding' : (data.low_confidence ? 'Weak pattern match — not a confirmed finding' : 'Most likely root cause')}</div>
+      </div>
+    </div>
+    ${restRows}
+    <div class="explanation ${data.low_confidence ? 'low-conf' : (wearFlag ? 'wear' : '')}">${data.explanation}</div>
+
+    <div class="kb-block">
+      <div class="kb-label">Recommendation</div>
+      <div class="recommendation">${data.top_cause_recommendation}</div>
+      <div class="kb-label">Inspection checklist</div>
+      <ul class="checklist">${checklistHtml}</ul>
+    </div>
+
+    <div class="confirm-row">
+      <button class="confirm-btn" onclick="confirmTopCause()">✓ Confirm '${top.cause}'</button>
+      <input id="override_input" placeholder="Or log a different root cause">
+      <button onclick="submitOverride()" style="font-size:12.5px;font-weight:600;background:var(--blue-soft);color:var(--blue);border:none;border-radius:10px;padding:0 16px;cursor:pointer;">Log</button>
+    </div>
+    <div id="overrideMsg"></div>
+
+    ${similarHtml}
+  `;
+
+  const dctx = document.getElementById('donutChart');
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(dctx, {
+    type: 'doughnut',
+    data: { datasets: [{ data: [top.confidence, 1 - top.confidence], backgroundColor: [color, cssVar('--line')], borderWidth: 0 }] },
+    options: { cutout: '76%', plugins: { tooltip: { enabled: false }, legend: { display: false } }, animation: { duration: 400 } }
+  });
+}
+
+async function confirmTopCause() {
+  if (!lastPredictionId || !lastTopCause) return;
+  await logOverride(lastTopCause);
+}
+
+async function submitOverride() {
+  const val = document.getElementById('override_input').value.trim();
+  if (!val || !lastPredictionId) return;
+  await logOverride(val);
+}
+
+async function logOverride(value) {
+  try {
+    await fetch(`${API}/feedback`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ prediction_id: lastPredictionId, technician_override: value })
+    });
+    document.getElementById('overrideMsg').innerHTML = `<div class="override-ok">✓ Logged: ${value}</div>`;
+    loadAnalytics();
+  } catch (err) {
+    document.getElementById('overrideMsg').innerHTML = '<div class="override-ok err">Failed to log override</div>';
+  }
+}
+
+async function loadAnalytics() {
+  let data;
+  try {
+    const res = await fetch(`${API}/analytics/summary`);
+    data = await res.json();
+    document.getElementById('liveDot').classList.remove('offline');
+  } catch (err) {
+    document.getElementById('liveDot').classList.add('offline');
+    document.getElementById('totalNum').textContent = '—';
+    document.getElementById('agreementNum').textContent = 'offline';
+    return;
+  }
+
+  document.getElementById('totalNum').textContent = data.total_predictions ?? 0;
+  document.getElementById('overrideNum').textContent = data.override_count ?? 0;
+
+  const agEl = document.getElementById('agreementNum');
+  if (data.agreement_rate != null) {
+    const pct = (data.agreement_rate * 100).toFixed(0);
+    agEl.textContent = `${pct}%`;
+    agEl.className = 'num' + (pct >= 70 ? '' : (pct >= 45 ? ' warn' : ' low'));
+  } else {
+    agEl.textContent = '—'; agEl.className = 'num';
+  }
+
+  document.getElementById('avgConfNum').textContent =
+    data.avg_confidence != null ? `${(data.avg_confidence * 100).toFixed(0)}%` : '—';
+}
+
+loadAnalytics();
+</script>
+</body>
+</html>
